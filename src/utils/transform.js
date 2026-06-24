@@ -1,5 +1,15 @@
 const { slugify } = require('./slugify');
 
+function parseBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  }
+  return false;
+}
+
 function rowToProduct(row) {
   let gallery = [];
   try { gallery = JSON.parse(row.gallery || '[]'); } catch {}
@@ -17,16 +27,16 @@ function rowToProduct(row) {
     description: row.description || '',
     audience: {
       general: {
-        available: row.general_available === 'TRUE' || row.general_available === true,
-        customizable: row.general_customizable === 'TRUE' || row.general_customizable === true,
+        available: parseBoolean(row.general_available),
+        customizable: parseBoolean(row.general_customizable),
       },
       business: {
-        available: row.business_available === 'TRUE' || row.business_available === true,
-        customizable: row.business_customizable === 'TRUE' || row.business_customizable === true,
+        available: parseBoolean(row.business_available),
+        customizable: parseBoolean(row.business_customizable),
       },
     },
     tags,
-    featured: row.featured === 'true' || row.featured === true,
+    featured: parseBoolean(row.featured),
   };
 }
 
