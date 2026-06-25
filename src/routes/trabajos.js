@@ -1,9 +1,16 @@
 const { Router } = require('express');
+const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const sheetdb = require('../lib/sheetdb');
 const { rowToTrabajo, trabajoToRow } = require('../utils/transform');
 
 const router = Router();
+
+const writeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiadas operaciones de escritura. Intenta de nuevo en un minuto.' },
+});
 
 router.get('/', async (req, res, next) => {
   try {
@@ -23,7 +30,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, writeLimiter, async (req, res, next) => {
   try {
     const { title, description, image, category, quantity } = req.body;
 
@@ -31,9 +38,7 @@ router.post('/', authenticate, async (req, res, next) => {
       return res.status(400).json({ error: 'title es requerido' });
     }
 
-    const allRows = await sheetdb.read('trabajos');
-    const maxId = allRows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
-    const newId = String(maxId + 1);
+    const newId = String(Date.now());
 
     const trabajo = {
       id: newId,

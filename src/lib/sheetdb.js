@@ -15,6 +15,7 @@ if (config.sheetdbAuth) {
 
 const cache = { data: {}, time: {} };
 const TTL = 60 * 60 * 1000;
+const STALE_TTL = 2 * 60 * 60 * 1000;
 
 function isCached(sheetName) {
   return (
@@ -24,9 +25,33 @@ function isCached(sheetName) {
   );
 }
 
+function isStale(sheetName) {
+  return (
+    cache.data[sheetName] &&
+    cache.time[sheetName] &&
+    Date.now() - cache.time[sheetName] < STALE_TTL
+  );
+}
+
 function invalidate(sheetName) {
   delete cache.data[sheetName];
   delete cache.time[sheetName];
+}
+
+const pendingRevalidation = {};
+
+async function revalidate(sheetName) {
+  if (pendingRevalidation[sheetName]) return;
+  pendingRevalidation[sheetName] = true;
+  try {
+    const res = await client.get('/', { params: { sheet: sheetName } });
+    cache.data[sheetName] = res.data;
+    cache.time[sheetName] = Date.now();
+  } catch (err) {
+    console.error(`[SheetDB] Revalidation failed for ${sheetName}:`, err.message);
+  } finally {
+    delete pendingRevalidation[sheetName];
+  }
 }
 
 async function read(sheetName, options = {}) {
@@ -36,8 +61,15 @@ async function read(sheetName, options = {}) {
   if (options.search) params.search = JSON.stringify(options.search);
 
   const isFullRead = Object.keys(options).length === 0;
-  if (isFullRead && isCached(sheetName)) {
-    return cache.data[sheetName];
+
+  if (isFullRead && cache.data[sheetName]) {
+    if (isCached(sheetName)) {
+      return cache.data[sheetName];
+    }
+    if (isStale(sheetName)) {
+      revalidate(sheetName);
+      return cache.data[sheetName];
+    }
   }
 
   const res = await client.get('/', { params });

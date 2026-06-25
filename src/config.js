@@ -13,4 +13,8 @@ module.exports = {
   jwtSecret: process.env.JWT_SECRET,
   adminEmail: process.env.ADMIN_EMAIL,
   adminPassword: process.env.ADMIN_PASSWORD,
+  corsOrigins: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+    : '*',
+  nodeEnv: process.env.NODE_ENV || 'development',
 };

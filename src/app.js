@@ -1,12 +1,40 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const config = require('./config');
 
 const app = express();
 
-app.use(cors());
-app.use(morgan('dev'));
+app.use(compression());
 app.use(express.json());
+
+if (config.nodeEnv !== 'production') {
+  app.use(morgan('dev'));
+}
+
+const corsOrigins = config.corsOrigins === '*'
+  ? '*'
+  : config.corsOrigins;
+app.use(cors({ origin: corsOrigins }));
+
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes. Intenta de nuevo en un minuto.' },
+});
+app.use(globalLimiter);
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de login. Intenta de nuevo en un minuto.' },
+});
+
+app.use('/api', authLimiter);
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/productos', require('./routes/productos'));
