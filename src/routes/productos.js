@@ -1,10 +1,17 @@
 const { Router } = require('express');
+const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const sheetdb = require('../lib/sheetdb');
 const { rowToProduct } = require('../utils/transform');
 const { slugify } = require('../utils/slugify');
 
 const router = Router();
+
+const writeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiadas operaciones de escritura. Intenta de nuevo en un minuto.' },
+});
 
 router.get('/', async (req, res, next) => {
   try {
@@ -24,7 +31,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, writeLimiter, async (req, res, next) => {
   try {
     const { name, category, price, image, gallery, description,
             general_available, general_customizable,
@@ -36,10 +43,7 @@ router.post('/', authenticate, async (req, res, next) => {
     }
 
     const slug = req.body.slug || slugify(name);
-
-    const allRows = await sheetdb.read('productos');
-    const maxId = allRows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
-    const newId = String(maxId + 1);
+    const newId = String(Date.now());
 
     const product = {
       id: newId, name, slug, category,
