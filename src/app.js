@@ -37,6 +37,8 @@ const authLimiter = rateLimit({
 app.use('/api', authLimiter);
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/productos/batch', require('./routes/batchProductos'));
+app.use('/api/trabajos/batch', require('./routes/batchTrabajos'));
 app.use('/api/productos', require('./routes/productos'));
 app.use('/api/trabajos', require('./routes/trabajos'));
 
