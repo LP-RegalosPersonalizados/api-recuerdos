@@ -15,7 +15,7 @@ if (config.sheetdbAuth) {
 
 const cache = { data: {}, time: {} };
 const TTL = 60 * 60 * 1000;
-const STALE_TTL = 2 * 60 * 60 * 1000;
+const STALE_TTL = 72 * 60 * 60 * 1000;
 
 function isCached(sheetName) {
   return (
@@ -72,14 +72,22 @@ async function read(sheetName, options = {}) {
     }
   }
 
-  const res = await client.get('/', { params });
+  try {
+    const res = await client.get('/', { params });
 
-  if (isFullRead) {
-    cache.data[sheetName] = res.data;
-    cache.time[sheetName] = Date.now();
+    if (isFullRead) {
+      cache.data[sheetName] = res.data;
+      cache.time[sheetName] = Date.now();
+    }
+
+    return res.data;
+  } catch (err) {
+    if (cache.data[sheetName]) {
+      console.warn(`[SheetDB] Error fetching ${sheetName}, serving stale cache (${err.message})`);
+      return cache.data[sheetName];
+    }
+    throw err;
   }
-
-  return res.data;
 }
 
 async function create(sheetName, data) {
