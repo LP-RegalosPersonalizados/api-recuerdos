@@ -3,6 +3,7 @@ const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const sheetdb = require('../lib/sheetdb');
 const { trabajoToRow } = require('../utils/transform');
+const { getNextId } = require('../utils/idGenerator');
 
 const router = Router();
 
@@ -18,9 +19,11 @@ router.post('/', authenticate, batchLimiter, async (req, res, next) => {
     const results = { created: [], updated: [], failed: [] };
 
     if (creates.length > 0) {
+      const existing = await sheetdb.read('trabajos');
+      const startId = getNextId(existing);
       const rows = creates.map((t, i) => trabajoToRow({
         ...t,
-        id: String(Date.now() + i),
+        id: String(startId + i),
       }));
       await sheetdb.create('trabajos', rows);
       results.created = rows.map(r => ({ id: r.id, title: r.title }));
