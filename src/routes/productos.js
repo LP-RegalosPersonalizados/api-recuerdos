@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const sheetdb = require('../lib/sheetdb');
 const { rowToProduct } = require('../utils/transform');
 const { slugify } = require('../utils/slugify');
+const { getNextId } = require('../utils/idGenerator');
 
 const router = Router();
 
@@ -43,7 +44,8 @@ router.post('/', authenticate, writeLimiter, async (req, res, next) => {
     }
 
     const slug = req.body.slug || slugify(name);
-    const newId = String(Date.now());
+    const existing = await sheetdb.read('productos');
+    const newId = String(getNextId(existing));
 
     const product = {
       id: newId, name, slug, category,
@@ -60,8 +62,7 @@ router.post('/', authenticate, writeLimiter, async (req, res, next) => {
     };
 
     await sheetdb.create('productos', product);
-    const created = await sheetdb.read('productos', { search: { id: newId }, limit: 1 });
-    res.status(201).json(rowToProduct(created[0]));
+    res.status(201).json(rowToProduct(product));
   } catch (err) { next(err); }
 });
 

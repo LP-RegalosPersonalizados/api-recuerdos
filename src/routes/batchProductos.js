@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const sheetdb = require('../lib/sheetdb');
 const { productToRow } = require('../utils/transform');
 const { slugify } = require('../utils/slugify');
+const { getNextId } = require('../utils/idGenerator');
 
 const router = Router();
 
@@ -19,9 +20,11 @@ router.post('/', authenticate, batchLimiter, async (req, res, next) => {
     const results = { created: [], updated: [], failed: [] };
 
     if (creates.length > 0) {
+      const existing = await sheetdb.read('productos');
+      const startId = getNextId(existing);
       const rows = creates.map((p, i) => productToRow({
         ...p,
-        id: String(Date.now() + i),
+        id: String(startId + i),
         slug: p.slug || slugify(p.name),
       }));
       await sheetdb.create('productos', rows);
