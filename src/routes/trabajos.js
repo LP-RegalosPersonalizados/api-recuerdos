@@ -3,6 +3,7 @@ const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../middleware/auth');
 const sheetdb = require('../lib/sheetdb');
 const { rowToTrabajo, trabajoToRow } = require('../utils/transform');
+const { getNextId } = require('../utils/idGenerator');
 
 const router = Router();
 
@@ -38,7 +39,8 @@ router.post('/', authenticate, writeLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'title es requerido' });
     }
 
-    const newId = String(Date.now());
+    const existing = await sheetdb.read('trabajos');
+    const newId = String(getNextId(existing));
 
     const trabajo = {
       id: newId,
@@ -50,8 +52,7 @@ router.post('/', authenticate, writeLimiter, async (req, res, next) => {
     };
 
     await sheetdb.create('trabajos', trabajo);
-    const created = await sheetdb.read('trabajos', { search: { id: newId }, limit: 1 });
-    res.status(201).json(rowToTrabajo(created[0]));
+    res.status(201).json(rowToTrabajo(trabajo));
   } catch (err) { next(err); }
 });
 
