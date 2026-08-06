@@ -17,7 +17,12 @@ const writeLimiter = rateLimit({
 router.get('/', async (req, res, next) => {
   try {
     const rows = await sheetdb.read('productos');
-    res.json(rows.map(rowToProduct));
+    let products = rows.map(rowToProduct);
+    if (req.query.categoria) {
+      const slug = slugify(req.query.categoria);
+      products = products.filter(p => p.category === slug);
+    }
+    res.json(products);
   } catch (err) { next(err); }
 });
 
@@ -48,7 +53,7 @@ router.post('/', authenticate, writeLimiter, async (req, res, next) => {
     const newId = String(getNextId(existing));
 
     const product = {
-      id: newId, name, slug, category,
+      id: newId, name, slug, category: slugify(category),
       price: price != null ? String(price) : '',
       image: image || '',
       gallery: JSON.stringify(gallery || []),
@@ -81,6 +86,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
       updateData.slug = slugify(req.body.name);
     }
     if (req.body.slug !== undefined) updateData.slug = req.body.slug;
+    if (req.body.category !== undefined) updateData.category = slugify(req.body.category);
     if (req.body.price !== undefined) updateData.price = String(req.body.price);
     if (req.body.gallery !== undefined) updateData.gallery = JSON.stringify(req.body.gallery);
     if (req.body.tags !== undefined) updateData.tags = JSON.stringify(req.body.tags);
